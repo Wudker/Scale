@@ -17,7 +17,8 @@ const int sckPin = 3;
 const uint8_t Tare_pin = 5;
 const uint8_t LED_pin = 6;
 
-static float Scale = (181224.0f - 44012.00f) / 590.0f;
+//static float Scale = (181224.0f - 44012.00f) / 590.0f;
+static float Scale =230.0f;
 
 // --- ZMIENNE FILTRA ---
 float wykladzona_waga = 0;
