@@ -1,4 +1,4 @@
-#include <Arduino.h>
+korektaKalibracji#include <Arduino.h>
 #include <HX711.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
@@ -18,18 +18,20 @@ const uint8_t Tare_pin = 5;
 const uint8_t LED_pin = 6;
 
 //static float Scale = (181224.0f - 44012.00f) / 590.0f;
-static float Scale =230.0f;
-static const float K1 = 1.00399493f;
-static const float K2 = -0.00001204615f;
+static float Scale = 232.93f;
+static const float K1 = 1.0f;
+static const float K2 = 0.0f;
 
 float korektaKalibracji(float grams)
 {
+  //for now its unnecessary (0-500 grams is linear), so we just return the value,
+  // but in the future we can add a polynomial correction here.
   return K1 * grams + K2 * grams * grams;
 }
 
 // --- ZMIENNE FILTRA ---
 float wykladzona_waga = 0;
-float alfa = 0.75; 
+float alfa = 0.5; 
 bool initialized = false;
 
 void wyswietl(float grams)
@@ -63,7 +65,7 @@ void tare()
   display.print("Zerowanie...");
   display.display();
 
-  scale.tare(20);
+  scale.tare(50);
   wykladzona_waga = 0;
   initialized = true;
   Serial.println("Tare wykonane.");
@@ -119,5 +121,5 @@ void loop()
 
   wyswietl(aktualna_waga);
 
-  delay(5);
+  delay(1);
 }
