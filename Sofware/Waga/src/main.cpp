@@ -19,10 +19,17 @@ const uint8_t LED_pin = 6;
 
 //static float Scale = (181224.0f - 44012.00f) / 590.0f;
 static float Scale =230.0f;
+static const float K1 = 1.00399493f;
+static const float K2 = -0.00001204615f;
+
+float korektaKalibracji(float grams)
+{
+  return K1 * grams + K2 * grams * grams;
+}
 
 // --- ZMIENNE FILTRA ---
 float wykladzona_waga = 0;
-float alfa = 0.8; 
+float alfa = 0.75; 
 bool initialized = false;
 
 void wyswietl(float grams)
@@ -41,7 +48,7 @@ void wyswietl(float grams)
     display.print(" kg");
   }
 else{
-  display.print(grams, 1);
+  display.print(grams, 2);
   display.print(" g");
 }
 display.display();
@@ -66,7 +73,7 @@ float pobierz_wynik()
 {
   if (scale.is_ready())
   {
-    float surowy_odczyt = scale.get_units(5);
+    float surowy_odczyt = korektaKalibracji(scale.get_units(5));
     wykladzona_waga = (alfa * surowy_odczyt) + ((1.0 - alfa) * wykladzona_waga);
     return wykladzona_waga;
   }
@@ -112,5 +119,5 @@ void loop()
 
   wyswietl(aktualna_waga);
 
-  delay(15);
+  delay(5);
 }
