@@ -1,98 +1,104 @@
-korektaKalibracji#include <Arduino.h>
+#include <Arduino.h>
 #include <HX711.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
-#define i2c_Address 0x3c
+#define i2cAddress 0x3c
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 #define OLED_RESET -1
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 HX711 scale;
 
-// --- KONFIGURACJA ---
+// Configuration
 const int doutPin = 2;
 const int sckPin = 3;
-const uint8_t Tare_pin = 5;
-const uint8_t LED_pin = 6;
+const uint8_t tarePin = 5;
+const uint8_t ledPin = 6;
+static float scaleFactor = 233.12f;
+static const float k1 = 1.0f;
+static const float k2 = 0.0f;
+float filteredWeight = 0;
+bool initialized = false;
 
-//static float Scale = (181224.0f - 44012.00f) / 590.0f;
-static float Scale = 232.93f;
-static const float K1 = 1.0f;
-static const float K2 = 0.0f;
-
-float korektaKalibracji(float grams)
+float calibrationCorrection(float grams)
 {
   //for now its unnecessary (0-500 grams is linear), so we just return the value,
   // but in the future we can add a polynomial correction here.
-  return K1 * grams + K2 * grams * grams;
+  return k1 * grams + k2 * grams * grams;
 }
 
-// --- ZMIENNE FILTRA ---
-float wykladzona_waga = 0;
-float alfa = 0.5; 
-bool initialized = false;
-
-void wyswietl(float grams)
+void displayWeight(float grams)
 {
   display.clearDisplay();
   display.setTextColor(SSD1306_WHITE);
   display.setTextSize(2);
   display.setCursor(0, 0);
-  display.print("Waga:");
+  display.print("Weight:");
   display.setCursor(0, 30);
 
   if (abs(grams) < 1.0)
     grams = 0.0;
-  if (grams >= 1000.0){
-    display.print(grams/1000.0, 3);
+  if (grams >= 1000.0)
+  {
+    display.print(grams / 1000.0, 3);
     display.print(" kg");
   }
-else{
-  display.print(grams, 2);
-  display.print(" g");
-}
-display.display();
+  else
+  {
+    display.print(grams, 2);
+    display.print(" g");
+  }
+  display.display();
 }
 
-void tare()
+void tareScale()
 {
   display.clearDisplay();
   display.setCursor(0, 0);
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
-  display.print("Zerowanie...");
+  display.print("Zeroing...");
   display.display();
 
-  scale.tare(50);
-  wykladzona_waga = 0;
+  scale.tare(25);
+  filteredWeight = 0;
   initialized = true;
-  Serial.println("Tare wykonane.");
+  Serial.println("Tare completed.");
 }
 
-float pobierz_wynik()
+float getWeightResult()
 {
   if (scale.is_ready())
   {
-    float surowy_odczyt = korektaKalibracji(scale.get_units(5));
-    wykladzona_waga = (alfa * surowy_odczyt) + ((1.0 - alfa) * wykladzona_waga);
-    return wykladzona_waga;
+    float newReading = calibrationCorrection(scale.get_units(2));
+
+    float difference = abs(newReading - filteredWeight);
+
+    float dynamicAlpha = (difference > 1.0f) ? 0.85f : 0.15f;
+
+    filteredWeight =
+        dynamicAlpha * newReading +
+        (1.0f - dynamicAlpha) * filteredWeight;
+
+    return filteredWeight;
   }
-  return wykladzona_waga;
+
+  return filteredWeight;
 }
 
 void setup()
 {
   Serial.begin(9600);
-  pinMode(Tare_pin, INPUT_PULLUP);
-  pinMode(LED_pin, OUTPUT);
-  digitalWrite(LED_pin, HIGH);
+  pinMode(tarePin, INPUT_PULLUP);
+  pinMode(ledPin, OUTPUT);
+  digitalWrite(ledPin, HIGH);
 
   scale.begin(doutPin, sckPin);
-  scale.set_scale(Scale);
+  scale.set_scale(scaleFactor);
 
-  if (!display.begin(SSD1306_SWITCHCAPVCC, i2c_Address))
+  if (!display.begin(SSD1306_SWITCHCAPVCC, i2cAddress))
   {
     Serial.println(F("OLED error"));
   }
@@ -102,24 +108,24 @@ void setup()
     display.display();
   }
 
-  tare(); 
+  tareScale();
 }
 
 void loop()
 {
-  if (digitalRead(Tare_pin) == LOW)
+  if (digitalRead(tarePin) == LOW)
   {
-    tare();
+    tareScale();
     delay(200);
   }
 
-  float aktualna_waga = pobierz_wynik();
+  float currentWeight = getWeightResult();
 
-  Serial.print("Waga: ");
-  Serial.print(aktualna_waga);
+  Serial.print("Weight: ");
+  Serial.print(currentWeight);
   Serial.println(" g");
 
-  wyswietl(aktualna_waga);
+  displayWeight(currentWeight);
 
   delay(1);
 }
