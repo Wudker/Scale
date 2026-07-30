@@ -16,17 +16,16 @@ const int doutPin = 2;
 const int sckPin = 3;
 const uint8_t tarePin = 5;
 const uint8_t ledPin = 6;
-static float scaleFactor = 233.12f;
-static const float k1 = 1.0f;
-static const float k2 = 0.0f;
+static float scaleFactor = 232.39f;
 float filteredWeight = 0;
 bool initialized = false;
 
 float calibrationCorrection(float grams)
 {
-  //for now its unnecessary (0-500 grams is linear), so we just return the value,
-  // but in the future we can add a polynomial correction here.
-  return k1 * grams + k2 * grams * grams;
+  if (grams <= 500.0f)
+    return grams;
+
+  return grams + 0.003965f * (grams - 500.0f);
 }
 
 void displayWeight(float grams)
@@ -76,7 +75,7 @@ float getWeightResult()
 
     float difference = abs(newReading - filteredWeight);
 
-    float dynamicAlpha = (difference > 1.0f) ? 0.85f : 0.15f;
+    float dynamicAlpha = (difference > 1.0f) ? 0.85f : 0.1f;
 
     filteredWeight =
         dynamicAlpha * newReading +
